@@ -1,98 +1,78 @@
 # app.py
-# Importando as bibliotecas necessárias
 from flask import Flask, request, jsonify
-import numpy as np
-from sklearn.linear_model import LinearRegression
 import pandas as pd
+import joblib
+import os
 
 # -------------------------------------------------------------------
-# 1. Preparação do Modelo de Machine Learning
+# 1. Carregamento do Modelo
 # -------------------------------------------------------------------
 
-# Em um cenário real, você carregaria seus dados de um arquivo (ex: CSV)
-# ou banco de dados. Para este exemplo, vamos criar dados fictícios.
-#
-# Objetivo do modelo: Prever o preço de um imóvel (y) com base no seu tamanho em m² (X).
-X_train_data = {
-    'tamanho_m2': [50, 60, 70, 80, 100, 120, 150]
-}
-y_train_data = {
-    'preco_reais': [150000, 180000, 210000, 240000, 300000, 360000, 450000]
-}
+# O modelo agora é carregado de um arquivo, não treinado aqui.
+model_filename = 'house_price_model.joblib'
+model = None
 
-# Convertendo os dados para DataFrames do Pandas, que é o formato
-# comumente usado em análise de dados com Python.
-X_train = pd.DataFrame(X_train_data)
-y_train = pd.DataFrame(y_train_data)
+# Bloco de segurança para garantir que o modelo existe.
+try:
+    model = joblib.load(model_filename)
+    print(f"--- Modelo '{model_filename}' carregado com sucesso! ---")
+except FileNotFoundError:
+    print(f"ERRO: Arquivo do modelo '{model_filename}' não encontrado.")
+    # Em um ambiente de produção, você pode querer que a aplicação pare se o modelo não puder ser carregado.
+    exit()
 
-# Criando uma instância do modelo de Regressão Linear.
-# Este é um dos modelos mais simples de machine learning.
-model = LinearRegression()
-
-# Treinando o modelo com nossos dados fictícios.
-# O método .fit() "aprende" a relação entre o tamanho (X) e o preço (y).
-model.fit(X_train, y_train)
-
-print("--- Modelo de Machine Learning treinado com sucesso! ---")
-print(f"Coeficiente (preço por m²): {model.coef_[0][0]:.2f}")
-print(f"Intercepto (custo base): {model.intercept_[0]:.2f}")
-print("---------------------------------------------------------")
+# Nomes das colunas na ordem que o modelo espera.
+MODEL_FEATURES = ['tamanho_m2', 'quartos', 'idade_anos']
 
 
 # -------------------------------------------------------------------
 # 2. Configuração da Aplicação Flask (API)
 # -------------------------------------------------------------------
 
-# Inicializando a aplicação Flask.
 app = Flask(__name__)
 
-# Definindo a rota principal da API (opcional, bom para teste de saúde)
 @app.route('/', methods=['GET'])
 def health_check():
     """Endpoint para verificar se a API está no ar."""
-    return "API de Previsão está funcionando!"
+    status = "OK" if model is not None else "ERRO: Modelo não carregado"
+    return f"API de Previsão de Preços de Imóveis. Status do Modelo: {status}"
 
-# Definindo a rota de previsão.
-# Usamos o método POST, pois o cliente enviará dados para a API.
 @app.route('/predict', methods=['POST'])
 def predict():
     """
     Endpoint que recebe dados de entrada em JSON e retorna a previsão do modelo.
     """
+    if model is None:
+        return jsonify({'error': 'Modelo não está disponível para fazer previsões.'}), 503
+
     try:
-        # 1. Pega os dados JSON enviados na requisição.
+        # Pega os dados JSON enviados na requisição.
         json_data = request.get_json(force=True)
 
-        # 2. Extrai os 'features' (características) do JSON.
-        # Esperamos um formato como: {"features": [[110], [130]]}
-        # onde cada lista interna é um dado para prever.
+        # Esperamos um formato como: {"features": [[140, 3, 2], [180, 4, 1]]}
         features = json_data['features']
 
-        # 3. Converte os dados para um formato que o modelo entende (DataFrame do Pandas).
-        # É importante que a coluna tenha o mesmo nome usado no treinamento ('tamanho_m2').
-        prediction_data = pd.DataFrame(features, columns=['tamanho_m2'])
+        # Converte os dados para um DataFrame do Pandas com as colunas corretas.
+        prediction_data = pd.DataFrame(features, columns=MODEL_FEATURES)
 
-        # 4. Usa o modelo treinado para fazer a previsão.
+        # Usa o modelo carregado para fazer a previsão.
         prediction = model.predict(prediction_data)
 
-        # 5. Formata a saída para ser uma lista de números.
-        output = prediction.flatten().tolist()
+        # Formata a saída para uma lista de números (arredondando para 2 casas decimais).
+        output = [round(p, 2) for p in prediction.tolist()]
 
-        # 6. Retorna a previsão em formato JSON com status 200 (OK).
         return jsonify({'prediction': output})
 
+    except (KeyError, TypeError, ValueError) as e:
+        # Erro mais específico se o JSON estiver mal formatado ou faltando.
+        error_msg = f"Erro no formato do input: {e}. O formato esperado é {{'features': [[num, num, num]]}}."
+        return jsonify({'error': error_msg}), 400
     except Exception as e:
-        # Em caso de erro (ex: JSON mal formatado), retorna uma mensagem de erro.
-        return jsonify({'error': str(e)}), 400
+        # Erro genérico para outros problemas.
+        return jsonify({'error': f'Ocorreu um erro inesperado: {str(e)}'}), 500
 
 # -------------------------------------------------------------------
 # 3. Execução da Aplicação
 # -------------------------------------------------------------------
-
-# Este bloco garante que o servidor só será executado quando o script
-# for chamado diretamente (e não quando for importado por outro script).
 if __name__ == '__main__':
-    # O host '0.0.0.0' é essencial para que a aplicação seja acessível
-    # de fora do container Docker no Easypanel.
     app.run(host='0.0.0.0', port=5000)
-
