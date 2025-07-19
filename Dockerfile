@@ -1,15 +1,18 @@
-# Use a imagem base padrão do Python, que já inclui as ferramentas de compilação.
-# Esta é a correção para o erro 'apt-get exit code 100'.
+# Use a imagem base padrão do Python.
 FROM python:3.9
 
 # Defina o diretório de trabalho dentro do container.
 WORKDIR /app
 
+# --- PASSO DE CORREÇÃO: ATUALIZAR O PIP ---
+# Garante que estamos a usar a versão mais recente do instalador de pacotes,
+# o que resolve muitos problemas de instalação de dependências.
+RUN pip install --upgrade pip
+
 # Copie o arquivo de dependências primeiro para otimizar o cache.
 COPY requirements.txt .
 
 # Instale as dependências Python.
-# Não precisamos mais do passo 'apt-get' com esta imagem base.
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copie todos os arquivos da sua aplicação (app.py, train_model.py).
