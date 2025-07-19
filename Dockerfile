@@ -4,9 +4,16 @@ FROM python:3.9
 # Defina o diretório de trabalho dentro do container.
 WORKDIR /app
 
-# --- PASSO DE CORREÇÃO: ATUALIZAR O PIP ---
-# Garante que estamos a usar a versão mais recente do instalador de pacotes,
-# o que resolve muitos problemas de instalação de dependências.
+# --- PASSO DE CORREÇÃO DEFINITIVO ---
+# Instala as ferramentas de compilação essenciais, incluindo o 'cmake',
+# que é uma dependência crítica para compilar pacotes como o xgboost.
+# Também limpamos o cache do apt para manter a imagem mais pequena.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    && rm -rf /var/lib/apt/lists/*
+
+# Atualiza o pip para a versão mais recente para evitar problemas de instalação.
 RUN pip install --upgrade pip
 
 # Copie o arquivo de dependências primeiro para otimizar o cache.
