@@ -1,19 +1,15 @@
-# Use uma imagem base oficial do Python.
-FROM python:3.9-slim
+# Use a imagem base padrão do Python, que já inclui as ferramentas de compilação.
+# Esta é a correção para o erro 'apt-get exit code 100'.
+FROM python:3.9
 
 # Defina o diretório de trabalho dentro do container.
 WORKDIR /app
 
-# --- PASSO DE CORREÇÃO: INSTALAR DEPENDÊNCIAS DO SISTEMA ---
-# A imagem 'slim' não vem com ferramentas de compilação.
-# Alguns pacotes Python (como numpy, xgboost) precisam compilar código C/C++
-# durante a instalação. Este comando instala essas ferramentas.
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential
-
 # Copie o arquivo de dependências primeiro para otimizar o cache.
 COPY requirements.txt .
 
-# Instale as dependências Python. Agora deve funcionar.
+# Instale as dependências Python.
+# Não precisamos mais do passo 'apt-get' com esta imagem base.
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copie todos os arquivos da sua aplicação (app.py, train_model.py).
