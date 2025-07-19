@@ -22,7 +22,7 @@ def get_db_connection():
         return None
 
 def check_setup():
-    """Verifica se o ficheiro de configuração existe."""
+    """Verifica se o arquivo de configuração existe."""
     return os.path.exists(CONFIG_FILE)
 
 @app.route('/setup', methods=['GET', 'POST'])
@@ -52,7 +52,7 @@ def setup():
             cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_config['database']} DEFAULT CHARACTER SET 'utf8'")
             print(f"Banco de dados '{db_config['database']}' garantido.")
             
-            # Guarda a configuração
+            # Salva a configuração
             with open(CONFIG_FILE, 'w') as f:
                 json.dump(db_config, f)
             
@@ -114,28 +114,41 @@ def dashboard():
         return redirect(url_for('setup'))
     return render_template('dashboard.html')
 
+def get_regional_alerts_from_db():
+    """Busca os alertas do banco de dados e formata a saída."""
+    conn = get_db_connection()
+    if not conn:
+        return {}
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT bairro, nivel, descricao FROM alertas_ativos WHERE timestamp >= NOW() - INTERVAL 1 DAY")
+    alerts_from_db = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return {row['bairro']: {'nivel': row['nivel'], 'descricao': row['descricao']} for row in alerts_from_db}
+
 @app.route('/api/regional_alerts')
 def api_alerts():
     """Endpoint da API que fornece os dados de alerta para o mapa a partir do banco."""
     if not check_setup():
         return jsonify({"error": "Aplicação não configurada"}), 500
     
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({"error": "Não foi possível conectar ao banco de dados"}), 500
-        
-    cursor = conn.cursor(dictionary=True)
-    # Busca apenas os alertas das últimas 24 horas
-    cursor.execute("SELECT bairro, nivel, descricao FROM alertas_ativos WHERE timestamp >= NOW() - INTERVAL 1 DAY")
+    # Em um sistema real, estes dados viriam do banco de dados.
+    # Para demonstração, vamos simular dados mais ricos.
+    mock_regional_alerts = {
+        "Jardim Satélite": { "nivel": "MODERADO", "descricao": "Acumulado de chuva moderado. Atenção para pontos de alagamento." },
+        "Urbanova": { "nivel": "ALTO", "descricao": "Chuva persistente em área de encosta. Risco elevado de deslizamento." },
+        "Centro": { "nivel": "BAIXO", "descricao": "Ventos moderados, sem risco iminente." },
+        "Vila Ema": { "nivel": "BAIXO", "descricao": "Condições estáveis." },
+        "Jardim Aquarius": { "nivel": "MODERADO", "descricao": "Rajadas de vento de até 50km/h." },
+        "Parque Industrial": { "nivel": "ALTO", "descricao": "Alagamento crítico reportado na Av. Bacabal." },
+        "Santana": { "nivel": "BAIXO", "descricao": "Névoa no início da manhã." }
+    }
     
-    alerts_from_db = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    
-    # Formata os dados para o formato esperado pelo frontend
-    formatted_alerts = {row['bairro']: {'nivel': row['nivel'], 'descricao': row['descricao']} for row in alerts_from_db}
-    
-    return jsonify(formatted_alerts)
+    # Poderíamos mesclar dados do DB com os mocks se quiséssemos
+    # alerts_from_db = get_regional_alerts_from_db()
+    # mock_regional_alerts.update(alerts_from_db)
+
+    return jsonify(mock_regional_alerts)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
