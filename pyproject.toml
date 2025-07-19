@@ -1,0 +1,17 @@
+# pyproject.toml
+[tool.poetry]
+name = "agente-api-preditiva"
+version = "0.1.0"
+description = "API de previsão para deploy no Easypanel."
+authors = ["Seu Nome <seu-email@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.111.0"
+uvicorn = {extras = ["standard"], version = "^0.30.1"}
+pandas = "^2.2.2"
+scikit-learn = "^1.5.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
