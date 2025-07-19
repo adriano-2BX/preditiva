@@ -1,4 +1,4 @@
 Flask
-scikit-learn
+requests
 pandas
-numpy
+mysql-connector-python
