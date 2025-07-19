@@ -1,24 +1,25 @@
 # Use uma imagem base oficial do Python.
-# A versão 'slim' é menor e ideal para produção.
+# A versão 'slim' é mais pequena e ideal para produção.
 FROM python:3.9-slim
 
-# Defina o diretório de trabalho dentro do container.
+# Defina o diretório de trabalho dentro do contentor.
 WORKDIR /app
 
-# Copie o arquivo de dependências primeiro.
-# Isso aproveita o cache do Docker: se o arquivo não mudar,
-# o passo de instalação não será executado novamente.
+# Copie o ficheiro de dependências primeiro para otimizar a cache.
 COPY requirements.txt .
 
-# Instale as dependências listadas no requirements.txt.
-# --no-cache-dir cria uma imagem menor.
+# Instale as dependências.
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copie o resto dos arquivos da sua aplicação para o diretório de trabalho.
+# Copie todos os ficheiros da sua aplicação (app.py, train_model.py).
 COPY . .
 
-# Exponha a porta em que o Flask estará rodando.
+# --- PASSO CRÍTICO: TREINE O MODELO DURANTE A CONSTRUÇÃO ---
+# Este comando executa o script de treino, gerando o ficheiro do modelo.
+RUN python train_model.py
+
+# Exponha a porta em que o Flask estará a ser executado.
 EXPOSE 5000
 
-# O comando para iniciar a sua aplicação quando o container for executado.
+# O comando para iniciar a API (que agora usa o modelo já treinado).
 CMD ["python", "app.py"]
